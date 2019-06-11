@@ -8,22 +8,22 @@
 var consonant_dict = {
   "ب": "b",
   "ت": "t",
-  "ث": "th",
+  "ث": "tẖ",
   "ج": "j",
   "ح": "ḥ",
-  "خ": "kh",
+  "خ": "kẖ",
   "د": "d",
-  "ذ": "dh",
+  "ذ": "dẖ",
   "ر": "r",
   "ز": "z",
   "س": "s",
-  "ش": "sh",
+  "ش": "sẖ",
   "ص": "ṣ",
   "ض": "ḍ",
   "ط": "ṭ",
   "ظ": "ẓ",
   "ع": "ʿ",
-  "غ": "gh",
+  "غ": "gẖ",
   "ف": "f",
   "ق": "q",
   "ك": "k",
@@ -77,6 +77,18 @@ var arabic_chars_dict = Object.assign({},
   vowel_dict,
   punctuation_dict)
 
+
+// fix shadda positions incase the short vowel is inserted by the shadda in typing
+function shadda_short_vowel_exchange(str) {
+  for (i = 0; i < str.length; i++) {
+    if ((str[i] == "\u0651") && (str[i-1] == "\u064E"
+    || str[i-1] == "\u0650" || str[i-1] == "\u064F")) {
+      str = str.substr(0,i) + str[i] + str[i-1] + str.substr(i)
+    }
+  }
+  return str;
+}
+
 // this function isolates the al at-ta3reef with a hyphen
 // the problem is that we aren't picking up on the tanwin
 // we need to change the tanwin to another symbol
@@ -88,7 +100,7 @@ function definite_article_separator(str) {
     if (i == 0 && str[i] == "a") {
         try {
           if (str[i+1] == "l") {
-            new_string = new_string.substr(0,i+2) + "-" + new_string.substr(i+2);
+            str = str.substr(0,i+2) + "-" + str.substr(i+2);
           }
         } catch {
           console.log("Something has gone wrong")
@@ -96,19 +108,22 @@ function definite_article_separator(str) {
     }
     else if (i != 0 && i != str.length-1) {
       if (str[i - 1] == " " && str[i + 1] == "l") {
-        new_string = new_string.substr(0,i+2) + "-" + new_string.substr(i+2);
+        str = str.substr(0,i+2) + "-" + str.substr(i+2);
         //console.log("a hyphen was added.")
       }
     }
+    console.log(i)
   }
-    return new_string;
+
+    console.log("definite_article_separator" + new_string)
+    return str;
 
 }
 
 // This function removes final alif after accusative tanwin alif
 // and makes tanwin ñ into n
 function normalize_tanwin(str) {
-  for (i = 0; i < str.length-1; i++) {
+  for (i = 0; i < str.length; i++) {
     if (str[i] == "ñ" && str[i+1] != " ") {
       str = str.substr(0,i) + "n" + str.substr(i+2);
     } else if (str[i] == "ñ") {
@@ -117,6 +132,7 @@ function normalize_tanwin(str) {
     }
     return str;
 }
+
 
 // this function changes vowels to glides in initial and final syllable positions
 function vowels_to_glides(str) {
@@ -171,6 +187,50 @@ function create_long_vowels(str) {
   return str;
 }
 
+function add_shadda(str) {
+  for (i = 0; i < str.length; i++) {
+    if (str[i] == "$") {
+       switch (str[i-1]) {
+         // this case is for the doubled letter consonants
+         case "ẖ":
+           try {
+              str = str.substr(0,i) + str[i-2] + str[i-1] + str.substr(i+1);
+
+           } catch {
+             //console.log(i)
+           }
+            if (str[i-3] == "-") {
+              str = str.substr(0,i-4) + str.substr(i-2,2) + "-" + str.substr(i);
+            }
+
+           break;
+          //case :
+          // This is for regular letters
+          default:
+           str = str.substr(0,i) + str[i-1] + str.substr(i+1);
+           if (str[i-2] == "-") {
+             str = str.substr(0,i-3) + str.substr(i-1, 1) + "-" + str.substr(i);
+           break;
+         }
+        }
+    }
+    console.log(i)
+  }
+  // put the shadda into article shift here
+  // or maybe in their respective areas
+
+  // cleans up the h's by removing the underscore
+  for (i = 0; i < str.length; i++) {
+    if (str[i] == "ẖ") {
+      str = str.substr(0,i) + "h" + str.substr(i+1);
+    }
+  }
+
+    return str;
+}
+
+    // remove - and al
+
 
 // this function takes the raw arabic script and converts to roman script from the dictionary
 function convert(str) {
@@ -188,13 +248,19 @@ function convert(str) {
 
 function transcribe() {
   arabicText = document.getElementById("arabicText").value;
-  output = convert(arabicText);
+  output = shadda_short_vowel_exchange(arabicText);
+  output = convert(output);
   // there needs to be a function that looks for regular words that start with "al" and replaces them
+  // later
   output = definite_article_separator(output);
   // shadda function here
+
   output = normalize_tanwin(output);
+  output = add_shadda(output);
   output = vowels_to_glides(output);
+  output = add_shadda(output);
   output = create_long_vowels(output);
+
   // hamzatul wasl function here
 
 
